@@ -249,3 +249,111 @@ function fetchUserInfo(userId) {
     });
 }
 ```
+
+## Promiseを活用する
+
+### 関数の分割
+
+大きくなりすぎた`fetchUserInfo()`を整理する。    
+現在、
+
+- Fetch APIを使ったデータの取得
+- HTML文字列の組み立て
+- 組み立てたHTMLの表示
+
+が一つの関数にあるので、それぞれを関数にして処理を分割する。
+
+`index.js`
+```js
+function fetchUserInfo(userId) {
+  fetch(`https://api.github.com/users/${encodeURIComponent(userId)}`)
+    .then((response) => {
+      // エラーレスポンス
+      if (!response.ok) {
+        console.error('エラーレスポンス', response);
+      } else {
+        return response.json().then((userInfo) => {
+          const view = createView(userInfo);
+          displayView(view);
+        });
+      }
+    })
+    .catch((error) => {
+      // ネットワークエラー
+      console.error('ネットワークエラー', error);
+    });
+}
+
+// HTMLの組み立て
+function createView(userInfo) {
+  return escapeHTML`
+    <h4>${userInfo.name} (@${userInfo.login})</h4>
+    <img src="${userInfo.avatar_url}" alt="${userInfo.login}" height="100">
+    <dl>
+      <dt>Location</dt>
+      <dd>${userInfo.location}</dd>
+      <dt>Repositories</dt>
+      <dd>${userInfo.public_repos}</dd>
+    </dl>
+  `;
+}
+
+// HTMLの挿入
+function displayView(view) {
+  const result = document.getElementById('result');
+  result.innerHTML = view;
+}
+```
+
+### アプリケーションにエントリーポイントを設ける
+
+エラーハンドリングを行いやすくするため。
+
+`index.js`
+```js
+function main() {
+  fetchUserInfo('js-primer-example');
+}
+```
+
+`index.html`
+```html
+  <button onclick="main();">Get User Info</button>
+```
+
+### Promiseのエラーハンドリング
+
+`fetchUserInfo()`で、`fetch()`をreturnする。    
+これによってPromiseオブジェクトがreturnされるため、`main()`の方でPromiseを受け取って非同期処理の結果を扱えるようになる。    
+エラーは全て`catch()`で受け取り、`main()`でハンドリングする。    
+`index.js`
+```js
+function main() {
+  fetchUserInfo('js-primer-example').catch((error) => {
+    // Promiseチェーンのエラーを受け取る
+    console.error(`エラーが発生しました (${error})`);
+  });
+}
+
+function fetchUserInfo(userId) {
+  return fetch(
+    `https://api.github.com/users/${encodeURIComponent(userId)}`
+  ).then((response) => {
+    // エラーレスポンス
+    if (!response.ok) {
+      // エラーレスポンスからrejectedなPromiseを作成
+      // -> Promiseチェーンがエラーの状態になるのでcatchでハンドリングできる
+      Promise.reject(new Error(`${response.status} : ${response.statusText}`));
+    } else {
+      return response.json().then((userInfo) => {
+        const view = createView(userInfo);
+        displayView(view);
+      });
+    }
+  });
+}
+```
+ネットワークエラー : 元々`catch()`で受け取るのでそのまま。    
+
+エラーレスポンス: そのままでは`catch()`で受け取れないので、受け取れるように処理を変更する。
+`Promise.reject()`で失敗したPromiseを返却して、Promiseチェーンをエラーの状態にする→`catch()`で受け取る

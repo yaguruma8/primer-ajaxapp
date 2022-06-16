@@ -357,3 +357,54 @@ function fetchUserInfo(userId) {
 
 エラーレスポンス: そのままでは`catch()`で受け取れないので、受け取れるように処理を変更する。
 `Promise.reject()`で失敗したPromiseを返却して、Promiseチェーンをエラーの状態にする→`catch()`で受け取る
+
+### Promiseチェーンのリファクタリング
+
+現在の`fetchUserInfo()`は、データの取得＋HTMLの組み立て＋表示を行なっている。    
+処理を関数に分割しても、処理が集中していることに変わりはないので、`fetchUserInfo()`はデータの取得のみ行うように変更する。    
+合わせて`main()`で、
+
+- データの取得(`fetchUserInfo()`)
+- HTMLの組み立て(`createView()`)
+- HTMLの表示(`displayView()`)
+
+をPromiseチェーンで行うように変更する。
+
+Promsiseチェーンは、`then`に渡されたコールバック関数の返り値をそのまま次の`then`に渡す。    
+ただし、コールバック関数の返り値がPromiseである場合は、そのPromiseで解決された値を次の`then`に渡す。    
+つまり同期処理でも非同期処理でも次の`then`が受け取る値の型は変わらない。
+
+Promiseチェーンを使って処理を分割する利点: 
+- 同期処理と非同期処理を区別せず連鎖できる。
+- 上記から、変更に強いコードを書ける。
+- どのように処理を分割するかは、それぞれの関数が受け取る値の型と、返す値の型に注目すると良い。
+
+方法: 
+`fetchUserInfo()`がResponseの`json()`の返り値をそのまま返すように変更する。    
+`main()`でPromiseチェーンで処理する。
+
+`index.js`
+```js
+function main() {
+  fetchUserInfo('js-primer-example')
+    .then((userInfo) => createView(userInfo))
+    .then((view) => displayView(view))
+    .catch((error) => {
+      // Promiseチェーンのエラーを受け取る
+      console.error(`エラーが発生しました (${error})`);
+    });
+}
+
+function fetchUserInfo(userId) {
+  return fetch(
+    `https://api.github.com/users/${encodeURIComponent(userId)}`
+  ).then((response) => {
+    // エラーレスポンス
+    if (!response.ok) {
+      Promise.reject(new Error(`${response.status} : ${response.statusText}`));
+    } else {
+      return response.json();
+    }
+  });
+}
+```

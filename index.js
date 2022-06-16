@@ -1,10 +1,13 @@
 'use strict';
 
 function main() {
-  fetchUserInfo('js-primer-example').catch((error) => {
-    // Promiseチェーンのエラーを受け取る
-    console.error(`エラーが発生しました (${error})`);
-  });
+  fetchUserInfo('js-primer-example')
+    .then((userInfo) => createView(userInfo))
+    .then((view) => displayView(view))
+    .catch((error) => {
+      // Promiseチェーンのエラーを受け取る
+      console.error(`エラーが発生しました (${error})`);
+    });
 }
 
 function fetchUserInfo(userId) {
@@ -13,14 +16,9 @@ function fetchUserInfo(userId) {
   ).then((response) => {
     // エラーレスポンス
     if (!response.ok) {
-      // エラーレスポンスからrejectedなPromiseを作成
-      // -> Promiseチェーンがエラーの状態になるのでcatchでハンドリングできる
       Promise.reject(new Error(`${response.status} : ${response.statusText}`));
     } else {
-      return response.json().then((userInfo) => {
-        const view = createView(userInfo);
-        displayView(view);
-      });
+      return response.json();
     }
   });
 }

@@ -109,8 +109,143 @@ function fetchUserInfo(userId) {
     })
     .catch((error) => {
       // ネットワークエラー
-      console.error(error);
+      console.error('ネットワークエラー', error);
     });
 }
 ```
 
+## データを表示する
+
+取得したデータ（json)をHTMLに整形してアプリケーションにユーザー情報を表示する。    
+HTMLの組み立てには`テンプレートリテラル`を利用する。
+
+```js
+const view = `
+<h4>${userInfo.name} (@${userInfo.login})</h4>
+<img src="${userInfo.avatar_url}" alt="${userInfo.login}" height="100">
+<dl>
+    <dt>Location</dt>
+    <dd>${userInfo.location}</dd>
+    <dt>Repositories</dt>
+    <dd>${userInfo.public_repos}</dd>
+</dl>
+`;
+```
+
+
+### 動的にHTMLをセットするための目印になる要素を追加する
+
+`index.html`
+```html
+    <!-- ... -->
+    <h2>GitHub User Info</h2>
+    <button onclick="fetchUserInfo('js-primer-example');">Get User Info</button>
+    <!-- 整形したHTMLの挿入先 -->
+    <div id="result"></div>
+    <script src="index.js"></script>
+```
+
+### JavaScriptによってHTML文字列をDOMに追加する方法
+
+- HTML文字列を`innerHTML`プロパティにセットする
+```js
+element.innerHTML = view;
+```
+簡潔に記載できるがエスケープ処理などのセキュリティに注意する必要がある
+
+- Elementオブジェクトを作成して手続的にツリー構造を構築する
+```js
+const childElement = document.createElement('div')
+element.appendChild(childElement)
+```
+冗長になるがセキュリティ的には安全
+
+### HTML文字列のエスケープ
+
+`innerHTML`プロパティに文字列をセットするとその文字列はHTMLとして解釈されるため、例えばGitHubのユーザー名に`<`や`>`などが含まれていると意図しない構造のHTMLになる可能性がある。    
+これを回避するために、文字列をセットする前に特定の記号を安全な表現に置換する必要がある。    
+この処理を一般的にHTMLの**エスケープ**と呼ぶ。
+
+特殊な記号に対するエスケープ処理
+`index.js`
+```js
+function escapeSpecialChars(str) {
+  return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+}
+```
+
+### タグ付きテンプレートリテラル
+
+作成したエスケープ関数を`userinfo`から値を注入しているすべての箇所で呼び出す。   
+ただし、テンプレートリテラル中で挿入している部分全てに関数を適用するのはメンテナンス性が良くないため、テンプレートリテラルを**タグ付け**して、エスケープ用の関数を自動的に適用させるようにする。    
+タグ付けされたテンプレートリテラルは、テンプレートによる値の埋め込みを関数の呼び出しとして扱う。    
+
+```js
+function escapeHTML(string, ...values) {
+  return string.reduce((result, str, i) => {
+    const value = values[i - 1];
+    if (typeof value === 'string') {
+      // 挿入された変数が文字列型ならエスケープする
+      return result + escapeSpecialChars(value) + str;
+    } else {
+      return result + String(value) + str;
+    }
+  });
+}
+```
+```js
+// テンプレートリテラルのバッククォート記号の前に関数を書くと関数がタグ付される
+const view = escapeHTML`
+<h4>${userInfo.name} (@${userInfo.login})</h4>
+<img src="${userInfo.avatar_url}" alt="${userInfo.login}" height="100">
+<dl>
+    <dt>Location</dt>
+    <dd>${userInfo.location}</dd>
+    <dt>Repositories</dt>
+    <dd>${userInfo.public_repos}</dd>
+</dl>
+`;
+// HTMLの挿入
+const result = document.getElementById('result');
+result.innerHTML = view;
+```
+
+### `fetchUserInfo()`内で組み立て
+```js
+function fetchUserInfo(userId) {
+  fetch(`https://api.github.com/users/${encodeURIComponent(userId)}`)
+    .then((response) => {
+      console.log(response.status);
+      // エラーレスポンス
+      if (!response.ok) {
+        console.error('エラーレスポンス', response);
+      } else {
+        return response.json().then((userInfo) => {
+          // HTMLの組み立て
+          const view = escapeHTML`
+            <h4>${userInfo.name} (@${userInfo.login})</h4>
+            <img src="${userInfo.avatar_url}" alt="${userInfo.login}" height="100">
+            <dl>
+              <dt>Location</dt>
+              <dd>${userInfo.location}</dd>
+              <dt>Repositories</dt>
+              <dd>${userInfo.public_repos}</dd>
+            </dl>
+          `;
+          // HTMLの挿入
+          const result = document.getElementById('result');
+          result.innerHTML = view;
+        });
+      }
+    })
+    .catch((error) => {
+      // ネットワークエラー
+      console.error('ネットワークエラー', error);
+    });
+}
+```

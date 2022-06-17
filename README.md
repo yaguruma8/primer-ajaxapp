@@ -431,3 +431,31 @@ async function main() {
   }
 }
 ```
+
+### ユーザーIDを変更できるようにする
+
+現状は`'js-primer-example'`のユーザー情報を取ってくるので固定されているが、これをユーザーの入力で変更できるようにする。
+
+`input`タグからJavaScriptで値を取得する。
+
+`index.html`
+```html
+    <input id="userId" type="text" value="js-primer-example" />
+```
+
+`index.js`
+```js
+async function main() {
+  try {
+    const userInfo = await fetchUserInfo(getUserId());
+    const view = createView(userInfo);
+    displayView(view);
+  } catch (error) {
+    console.error(`エラーが発生しました (${error})`);
+  }
+}
+
+function getUserId() {
+  return document.getElementById('userId').value;
+}
+```

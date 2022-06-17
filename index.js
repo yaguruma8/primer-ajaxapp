@@ -2,10 +2,10 @@
 
 async function main() {
   try {
-    const userInfo = await fetchUserInfo('js-primer-example')
-    const view = createView(userInfo)
-    displayView(view)
-  } catch(error) {
+    const userInfo = await fetchUserInfo(getUserId());
+    const view = createView(userInfo);
+    displayView(view);
+  } catch (error) {
     console.error(`エラーが発生しました (${error})`);
   }
 }
@@ -21,6 +21,11 @@ function fetchUserInfo(userId) {
       return response.json();
     }
   });
+}
+
+// inputタグから入力内容を取得
+function getUserId() {
+  return document.getElementById('userId').value;
 }
 
 // HTMLの組み立て

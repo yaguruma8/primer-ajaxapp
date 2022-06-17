@@ -408,3 +408,26 @@ function fetchUserInfo(userId) {
   });
 }
 ```
+
+### Async Function への置き換え
+
+PromiseチェーンをAsync Functionにすることにより、同期処理と同じ見た目でPromiseの非同期処理を記述できる。    
+`then()`によるコールバック関数の入れ子がなくなるためコードの見通しがよくなる。
+
+エラーハンドリングも`try...catch`が使えるようになる。
+
+`main()`をAsyncFunctionに変更する。    
+この置き換えをする場合に、あらかじめ非同期処理の関数がPromiseを返すようにしておくと、AsyncFunctionにリファクタリングしやすくなる。
+
+`index.js`
+```js
+async function main() {
+  try {
+    const userInfo = await fetchUserInfo('js-primer-example')
+    const view = createView(userInfo)
+    displayView(view)
+  } catch(error) {
+    console.error(`エラーが発生しました (${error})`);
+  }
+}
+```
